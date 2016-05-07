@@ -1,6 +1,7 @@
 CC=g++
-CFLAGS=-Wall
+CFLAGS=-Wall -g
+OUTPUT=lexer.bin
 
 all: automata.h
-	$(CC) $(CFLAGS) lexer.cpp automata.cpp -o lexer
+	$(CC) $(CFLAGS) lexer.cpp automata.cpp -o $(OUTPUT)
 

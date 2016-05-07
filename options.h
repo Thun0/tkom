@@ -1,0 +1,4 @@
+struct Options
+{
+    bool verbose;  
+};

@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <utility>
 
 #include "automata.h"
 #include "options.h"
@@ -15,17 +16,15 @@ enum Type
     REGISTER,
     COMMENT,
     OFFSET,
-    MEMORY_ACCESS,
-    ERROR
+    MEMORY_ACCESS
 };
 
 Options options;
-Automata address_automata;
+Automata automata; //[0-9a-f]+:?
 
-void init_address_automata()
+void init_automata()
 {
-    std::map < char, int > state0;
-    std::map < char, int > state1;
+    std::map < char, int > state0, state1;
     state0['0'] = 0;
     state0['1'] = 0;
     state0['2'] = 0;
@@ -43,9 +42,16 @@ void init_address_automata()
     state0['e'] = 0;
     state0['f'] = 0;
     state0[':'] = 1;
-    address_automata.push(state0);
-    address_automata.push(state1);
-    address_automata.add_accept(1);
+    automata.push(state0);
+    automata.push(state1);
+    automata.add_start_state(0);
+    automata.add_accept(std::make_pair(0, HEX_NUMBER));
+    automata.add_accept(std::make_pair(1, ADDRESS));
+}
+
+void init_register_automata()
+{
+    std::map < char, int > state0, state1;
 }
 
 void printUsage()
@@ -87,30 +93,53 @@ void print_error(const char* fmt, ...)
     va_end(argp);
 }
 
+char* type_to_str(int a)
+{
+    switch(a)
+    {
+        case ADDRESS:
+            return (char*)"address";
+        case HEX_NUMBER:
+            return (char*)"hex number";
+        case REGISTER:
+            return (char*)"register";
+        case COMMENT:
+            return (char*)"coment";
+        case OFFSET:
+            return (char*)"offset";
+        case MEMORY_ACCESS:
+            return (char*)"memory access";
+        default:
+            print_fatal("Type unknown\n");
+    }
+    return (char*)"bad type";
+}
+
 void process_line(char* line)
 {
     int len = strlen(line);
     int it = 0;
     int buf_idx = 0;
     char buf[len];
-    while(it < len && (line[it] == ' ' || line[it] == '\t')) it++;
+    while(it < len && (line[it] == ' ' || line[it] == '\t' || line[it] == '\n')) it++;
     while(it < len)
     {
-        if(line[it] == ' ' || line[it] == '\n')
+        if(line[it] == ' ' || line[it] == '\n' || line[it] == '\t')
         {
             buf[buf_idx] = '\0';
-            if(address_automata.is_accepted())
+            int status = automata.get_accept();
+            if(status != -1)
             {
-                print_log("Token accepted: %s\n", buf);
+                print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
             }
             else
             {
                 print_error("Token rejected %s\n", buf);
             }
             buf_idx = 0;
-            address_automata.reset();
+            automata.reset();
         }
-        else if(address_automata.next_state(line[it]) == -1)
+        else if(automata.next_state(line[it]) == -1)
         {
             print_fatal("Wrong character \'%c\' in line: %s", line[it], line);
         }
@@ -121,7 +150,7 @@ void process_line(char* line)
 
         it++;
     }
-    print_log("Line processed\n");
+    //print_log("Line processed\n");
 }
 
 int main(int argc, char** argv)
@@ -139,13 +168,13 @@ int main(int argc, char** argv)
         print_fatal("Error while reading file: %s\n", filepath);
     }
     print_log("File \"%s\" opened\n", filepath);
-    init_address_automata();
+    init_automata();
 
     char* line = NULL;
     size_t line_len = 0;
     while(getline(&line, &line_len, input_file) != -1)
     {
-        print_log("Read nextline, len: %d\n", strlen(line));
+        //print_log("Read nextline, len: %d\n", strlen(line));
         process_line(line);
 
         line = NULL;

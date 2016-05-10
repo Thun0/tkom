@@ -382,18 +382,21 @@ void process_line(char* line)
     {
         if(line[it] == ' ' || line[it] == '\n' || line[it] == '\t' || line[it] == ',')
         {
-            buf[buf_idx] = '\0';
-            int status = automata.get_accept();
-            if(status != -1)
+            if(automata.is_started())
             {
-                print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
-            }
-            else
-            {
-                print_error("Token rejected %s\n", buf);
-            }
-            buf_idx = 0;
-            automata.reset();
+                buf[buf_idx] = '\0';
+                int status = automata.get_accept();
+                if(status != -1)
+                {
+                    print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
+                }
+                else
+                {
+                    print_error("Token rejected %s\n", buf);
+                }
+                buf_idx = 0;
+                automata.reset();
+            }//else is empty string
         }
         else if(automata.next_state(line[it]) == -1)
         {

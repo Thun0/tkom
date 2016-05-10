@@ -18,5 +18,6 @@ class Automata
     int next_state(char);
     int get_state();
     int get_accept();
+    bool is_started();
     void reset();
 };

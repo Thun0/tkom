@@ -59,6 +59,10 @@ int Automata::get_state()
 
 int Automata::get_accept()
 {
+    if(!started)
+    {
+        return -1;
+    }
     for(unsigned i = 0; i < accepting_states.size(); ++i)
     {
         if(accepting_states[i].first == current_state)
@@ -72,6 +76,11 @@ int Automata::get_accept()
 void Automata::reset()
 {
     started = false;
+}
+
+bool Automata::is_started()
+{
+    return started;
 }
 
 void Automata::add_start_state(int start)

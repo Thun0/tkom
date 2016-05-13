@@ -23,6 +23,7 @@ enum Type
     LEFT_SQ_BRACKET,
     RIGHT_SQ_BRACKET,
     FUNC_NAME,
+    EXCLAMATION
 };
 
 Options options;
@@ -41,7 +42,7 @@ void init_instruction_set()
 
 void init_automata()
 {
-    int states_count = 23;
+    int states_count = 30;
     std::map < char, int > states[states_count];
     
     states[0][':'] = 2;
@@ -108,6 +109,11 @@ void init_automata()
 
     states[12]['#'] = 13;
     
+    states[13]['-'] = 28;
+    states[28]['0'] = 14;
+    for(char c = '1'; c <= '9'; ++c)
+        states[28][c] = 15;
+
     states[13]['0'] = 14;
     for(char c = '1'; c <= '9'; ++c)
         states[13][c] = 15;
@@ -138,6 +144,20 @@ void init_automata()
         states[22][c] = 22;
     for(char c = 'a'; c <= 'z'; ++c)
         states[22][c] = 22;
+    for(char c = 'A'; c <= 'Z'; ++c)
+        states[22][c] = 22;
+    states[22][':'] = 22;
+    states[22]['+'] = 22;
+    states[22]['-'] = 22;
+    states[22]['.'] = 22;
+    states[22]['_'] = 22;
+    states[22]['@'] = 22;
+
+    states[23][':'] = 29;
+
+    states[24][';'] = 25;
+
+    states[26]['!'] = 27;
 
     int i;
     for(i = 0; i < states_count; ++i)
@@ -149,6 +169,8 @@ void init_automata()
     automata.add_start_state(12);
     automata.add_start_state(18);
     automata.add_start_state(21);
+    automata.add_start_state(24);
+    automata.add_start_state(26);
     automata.add_accept(std::make_pair(0, HEX_OR_INST));
     automata.add_accept(std::make_pair(1, HEX_NUMBER));
     automata.add_accept(std::make_pair(2, ADDRESS));
@@ -159,7 +181,10 @@ void init_automata()
     automata.add_accept(std::make_pair(15, DECIMAL_OFFSET));
     automata.add_accept(std::make_pair(17, HEX_OFFSET));
     automata.add_accept(std::make_pair(20, COMMENT));
+    automata.add_accept(std::make_pair(25, COMMENT));
     automata.add_accept(std::make_pair(22, FUNC_NAME));
+    automata.add_accept(std::make_pair(27, EXCLAMATION));
+    automata.add_accept(std::make_pair(29, FUNC_NAME));
 }
 
 void init_register_automata()
@@ -202,6 +227,10 @@ char* type_to_str(int a)
             return (char*)"left square bracket";
         case RIGHT_SQ_BRACKET:
             return (char*)"right square bracket";
+        case FUNC_NAME:
+            return (char*)"function name";
+        case EXCLAMATION:
+            return (char*)"exclamation mark";
         default:
             print_fatal("Type unknown\n");
     }

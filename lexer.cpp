@@ -29,7 +29,7 @@ Automata automata; //[0-9a-f]+:?
 
 void init_automata()
 {
-    int states_count = 18;
+    int states_count = 21;
     std::map < char, int > states[states_count];
     states[0]['0'] = 1;
     states[0]['1'] = 1;
@@ -359,6 +359,8 @@ void init_automata()
     states[17]['e'] = 17;
     states[17]['f'] = 17;
 
+    states[18]['/'] = 19;
+    states[19]['/'] = 20;
 
     int i;
     for(i = 0; i < states_count; ++i)
@@ -368,6 +370,7 @@ void init_automata()
     automata.add_start_state(3);
     automata.add_start_state(0);
     automata.add_start_state(12);
+    automata.add_start_state(18);
     automata.add_accept(std::make_pair(0, HEX_OR_INST));
     automata.add_accept(std::make_pair(1, HEX_NUMBER));
     automata.add_accept(std::make_pair(2, ADDRESS));
@@ -377,6 +380,7 @@ void init_automata()
     automata.add_accept(std::make_pair(10, INSTRUCTION));
     automata.add_accept(std::make_pair(15, DECIMAL_OFFSET));
     automata.add_accept(std::make_pair(17, HEX_OFFSET));
+    automata.add_accept(std::make_pair(20, COMMENT));
 }
 
 void init_register_automata()
@@ -472,7 +476,13 @@ void process_line(char* line)
             {
                 buf[buf_idx] = '\0';
                 int status = automata.get_accept();
-                if(status != -1)
+                if(status == COMMENT)
+                {
+                    print_log("Comment found: %s", &line[it]);
+                    automata.reset();
+                    return;
+                }
+                else if(status != -1)
                 {
                     print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
                 }
@@ -487,16 +497,10 @@ void process_line(char* line)
             {
                 print_log("Token accepted: ] is %s\n", type_to_str(RIGHT_SQ_BRACKET));
             }
-
-
         }
         else if(line[it] == '[' && !automata.is_started())
         {
             print_log("Token accepted: [ is %s\n", type_to_str(LEFT_SQ_BRACKET));
-        }
-        else if(line[it] == ']' && !automata.is_started())
-        {
-            print_log("Token accepted: ] is %s\n", type_to_str(RIGHT_SQ_BRACKET));
         }
         else if(automata.next_state(line[it]) == -1)
         {

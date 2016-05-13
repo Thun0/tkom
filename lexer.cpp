@@ -18,7 +18,10 @@ enum Type
     OFFSET,
     MEMORY_ACCESS,
     HEX_OR_INST,
-    DECIMAL,
+    DECIMAL_OFFSET,
+    HEX_OFFSET,
+    LEFT_SQ_BRACKET,
+    RIGHT_SQ_BRACKET
 };
 
 Options options;
@@ -26,7 +29,7 @@ Automata automata; //[0-9a-f]+:?
 
 void init_automata()
 {
-    int states_count = 15;
+    int states_count = 18;
     std::map < char, int > states[states_count];
     states[0]['0'] = 1;
     states[0]['1'] = 1;
@@ -287,26 +290,75 @@ void init_automata()
     states[11]['z'] = 10;
 
     states[12]['#'] = 13;
+
     states[13]['0'] = 14;
-    states[13]['1'] = 14;
-    states[13]['2'] = 14;
-    states[13]['3'] = 14;
-    states[13]['4'] = 14;
-    states[13]['5'] = 14;
-    states[13]['6'] = 14;
-    states[13]['7'] = 14;
-    states[13]['8'] = 14;
-    states[13]['9'] = 14;
-    states[14]['0'] = 14;
-    states[14]['1'] = 14;
-    states[14]['2'] = 14;
-    states[14]['3'] = 14;
-    states[14]['4'] = 14;
-    states[14]['5'] = 14;
-    states[14]['6'] = 14;
-    states[14]['7'] = 14;
-    states[14]['8'] = 14;
-    states[14]['9'] = 14;
+    states[13]['1'] = 15;
+    states[13]['2'] = 15;
+    states[13]['3'] = 15;
+    states[13]['4'] = 15;
+    states[13]['5'] = 15;
+    states[13]['6'] = 15;
+    states[13]['7'] = 15;
+    states[13]['8'] = 15;
+    states[13]['9'] = 15;
+
+    states[14]['x'] = 16;
+    states[14]['0'] = 15;
+    states[14]['1'] = 15;
+    states[14]['2'] = 15;
+    states[14]['3'] = 15;
+    states[14]['4'] = 15;
+    states[14]['5'] = 15;
+    states[14]['6'] = 15;
+    states[14]['7'] = 15;
+    states[14]['8'] = 15;
+    states[14]['9'] = 15;
+
+    states[15]['0'] = 15;
+    states[15]['1'] = 15;
+    states[15]['2'] = 15;
+    states[15]['3'] = 15;
+    states[15]['4'] = 15;
+    states[15]['5'] = 15;
+    states[15]['6'] = 15;
+    states[15]['7'] = 15;
+    states[15]['8'] = 15;
+    states[15]['9'] = 15;
+
+    states[16]['0'] = 17;
+    states[16]['1'] = 17;
+    states[16]['2'] = 17;
+    states[16]['3'] = 17;
+    states[16]['4'] = 17;
+    states[16]['5'] = 17;
+    states[16]['6'] = 17;
+    states[16]['7'] = 17;
+    states[16]['8'] = 17;
+    states[16]['9'] = 17;
+    states[16]['a'] = 17;
+    states[16]['b'] = 17;
+    states[16]['c'] = 17;
+    states[16]['d'] = 17;
+    states[16]['e'] = 17;
+    states[16]['f'] = 17;
+
+    states[17]['0'] = 17;
+    states[17]['1'] = 17;
+    states[17]['2'] = 17;
+    states[17]['3'] = 17;
+    states[17]['4'] = 17;
+    states[17]['5'] = 17;
+    states[17]['6'] = 17;
+    states[17]['7'] = 17;
+    states[17]['8'] = 17;
+    states[17]['9'] = 17;
+    states[17]['a'] = 17;
+    states[17]['b'] = 17;
+    states[17]['c'] = 17;
+    states[17]['d'] = 17;
+    states[17]['e'] = 17;
+    states[17]['f'] = 17;
+
 
     int i;
     for(i = 0; i < states_count; ++i)
@@ -323,7 +375,8 @@ void init_automata()
     automata.add_accept(std::make_pair(8, REGISTER));
     automata.add_accept(std::make_pair(9, REGISTER));
     automata.add_accept(std::make_pair(10, INSTRUCTION));
-    automata.add_accept(std::make_pair(14, DECIMAL));
+    automata.add_accept(std::make_pair(15, DECIMAL_OFFSET));
+    automata.add_accept(std::make_pair(17, HEX_OFFSET));
 }
 
 void init_register_automata()
@@ -390,8 +443,14 @@ char* type_to_str(int a)
             return (char*)"hex or instruction";
         case INSTRUCTION:
             return (char*)"instruction";
-        case DECIMAL:
-            return (char*)"decimal number";
+        case DECIMAL_OFFSET:
+            return (char*)"decimal offset";
+        case HEX_OFFSET:
+            return (char*)"hex offset";
+        case LEFT_SQ_BRACKET:
+            return (char*)"left square bracket";
+        case RIGHT_SQ_BRACKET:
+            return (char*)"right square bracket";
         default:
             print_fatal("Type unknown\n");
     }
@@ -407,7 +466,7 @@ void process_line(char* line)
     while(it < len && (line[it] == ' ' || line[it] == '\t' || line[it] == '\n')) it++;
     while(it < len)
     {
-        if(line[it] == ' ' || line[it] == '\n' || line[it] == '\t' || line[it] == ',')
+        if(line[it] == ' ' || line[it] == '\n' || line[it] == '\t' || line[it] == ',' || line[it] == ']')
         {
             if(automata.is_started())
             {
@@ -424,6 +483,20 @@ void process_line(char* line)
                 buf_idx = 0;
                 automata.reset();
             }//else is empty string
+            if(line[it] == ']')
+            {
+                print_log("Token accepted: ] is %s\n", type_to_str(RIGHT_SQ_BRACKET));
+            }
+
+
+        }
+        else if(line[it] == '[' && !automata.is_started())
+        {
+            print_log("Token accepted: [ is %s\n", type_to_str(LEFT_SQ_BRACKET));
+        }
+        else if(line[it] == ']' && !automata.is_started())
+        {
+            print_log("Token accepted: ] is %s\n", type_to_str(RIGHT_SQ_BRACKET));
         }
         else if(automata.next_state(line[it]) == -1)
         {

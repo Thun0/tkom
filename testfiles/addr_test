@@ -20,3 +20,15 @@ sub
 b.eq
 25230:   aa0003e3    mov x3, x0
 #1235
+[x0]
+#234
+#0x2346
+#0xdeadbeef
+#000234
+  1fd7c:    91007ad6    add x22, x22, #0x1e
+   1fd80:   aa1403e1    mov x1, x20
+   1fd84:   927ceed6    and x22, x22, #0xfffffffffffffff0
+   1fd88:   cb3663ff    sub sp, sp, x22
+   1fd8c:   910003e0    mov x0, sp
+   1fd90:   910003f6    mov x22, sp
+

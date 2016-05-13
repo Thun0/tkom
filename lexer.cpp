@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <cstdarg>
 #include <cstdlib>
 #include <cstring>
 #include <map>
@@ -7,6 +6,7 @@
 
 #include "automata.h"
 #include "options.h"
+#include "output.h"
 
 enum Type
 {
@@ -26,6 +26,17 @@ enum Type
 
 Options options;
 Automata automata; //[0-9a-f]+:?
+
+void init_instruction_set()
+{
+    FILE* file = fopen("res/arm-instruction-set", "r+");
+    if(!file)
+    {
+        print_fatal("Couldn't open instruction-set file!\n");
+    }
+    print_log("Instruction set file opened\n");
+    fclose(file);
+}
 
 void init_automata()
 {
@@ -395,38 +406,6 @@ void printUsage()
     printf("\n");
 }
 
-void print_log(const char* fmt, ...)
-{
-    if(options.verbose)
-    {
-        printf("Log: ");
-        va_list argp;
-        va_start(argp, fmt);
-        vfprintf(stdout, fmt, argp);
-        va_end(argp);
-    }
-}
-
-void print_fatal(const char* fmt, ...)
-{
-    va_list argp;
-    printf("Fatal: ");
-    va_start(argp, fmt);
-    vfprintf(stdout, fmt, argp);
-    va_end(argp);
-    printf("Terminated\n");
-    exit(-1);
-}
-
-void print_error(const char* fmt, ...)
-{
-    va_list argp;
-    printf("Error: ");
-    va_start(argp, fmt);
-    vfprintf(stdout, fmt, argp);
-    va_end(argp);
-}
-
 char* type_to_str(int a)
 {
     switch(a)
@@ -513,7 +492,6 @@ void process_line(char* line)
 
         it++;
     }
-    //print_log("Line processed\n");
 }
 
 int main(int argc, char** argv)
@@ -525,6 +503,7 @@ int main(int argc, char** argv)
     }
     options.verbose = true;
     char* filepath = argv[1];
+    init_instruction_set();
     FILE* input_file = fopen(filepath, "r");
     if(input_file == NULL)
     {
@@ -537,9 +516,7 @@ int main(int argc, char** argv)
     size_t line_len = 0;
     while(getline(&line, &line_len, input_file) != -1)
     {
-        //print_log("Read nextline, len: %d\n", strlen(line));
         process_line(line);
-
         line = NULL;
         line_len = 0;
     }

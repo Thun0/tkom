@@ -1,6 +1,7 @@
 #include <algorithm>
-#include <cstdio>
+
 #include "automata.h"
+#include "output.h"
 
 Automata::Automata()
 {
@@ -39,14 +40,14 @@ int Automata::next_state(char move)
     {
         if(!start_automata(move))
         {
-            printf("ERROR: automata not started\n");
+            print_error("ERROR: automata not started\n");
         }        
     }
     if(states[current_state].find(move) != states[current_state].end())
     {
-        //printf("Change state with move \'%c\': %d -> ", move, current_state);
+        //print_log("Change state with move \'%c\': %d -> ", move, current_state);
         current_state = states[current_state][move];
-        //printf("%d\n", current_state);
+        //print_log("%d\n", current_state);
         return current_state;
     }
     return -1;

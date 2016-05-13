@@ -18,6 +18,7 @@ enum Type
     OFFSET,
     MEMORY_ACCESS,
     HEX_OR_INST,
+    DECIMAL,
 };
 
 Options options;
@@ -25,7 +26,7 @@ Automata automata; //[0-9a-f]+:?
 
 void init_automata()
 {
-    int states_count = 12;
+    int states_count = 15;
     std::map < char, int > states[states_count];
     states[0]['0'] = 1;
     states[0]['1'] = 1;
@@ -285,6 +286,28 @@ void init_automata()
     states[11]['y'] = 10;
     states[11]['z'] = 10;
 
+    states[12]['#'] = 13;
+    states[13]['0'] = 14;
+    states[13]['1'] = 14;
+    states[13]['2'] = 14;
+    states[13]['3'] = 14;
+    states[13]['4'] = 14;
+    states[13]['5'] = 14;
+    states[13]['6'] = 14;
+    states[13]['7'] = 14;
+    states[13]['8'] = 14;
+    states[13]['9'] = 14;
+    states[14]['0'] = 14;
+    states[14]['1'] = 14;
+    states[14]['2'] = 14;
+    states[14]['3'] = 14;
+    states[14]['4'] = 14;
+    states[14]['5'] = 14;
+    states[14]['6'] = 14;
+    states[14]['7'] = 14;
+    states[14]['8'] = 14;
+    states[14]['9'] = 14;
+
     int i;
     for(i = 0; i < states_count; ++i)
     {
@@ -292,6 +315,7 @@ void init_automata()
     }
     automata.add_start_state(3);
     automata.add_start_state(0);
+    automata.add_start_state(12);
     automata.add_accept(std::make_pair(0, HEX_OR_INST));
     automata.add_accept(std::make_pair(1, HEX_NUMBER));
     automata.add_accept(std::make_pair(2, ADDRESS));
@@ -299,6 +323,7 @@ void init_automata()
     automata.add_accept(std::make_pair(8, REGISTER));
     automata.add_accept(std::make_pair(9, REGISTER));
     automata.add_accept(std::make_pair(10, INSTRUCTION));
+    automata.add_accept(std::make_pair(14, DECIMAL));
 }
 
 void init_register_automata()
@@ -365,6 +390,8 @@ char* type_to_str(int a)
             return (char*)"hex or instruction";
         case INSTRUCTION:
             return (char*)"instruction";
+        case DECIMAL:
+            return (char*)"decimal number";
         default:
             print_fatal("Type unknown\n");
     }

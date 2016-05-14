@@ -11,13 +11,12 @@
 enum Type
 {
     ADDRESS = 1,
-    INSTRUCTION,
+    KEYWORD,
     HEX_NUMBER,
     REGISTER,
     COMMENT,
     OFFSET,
-    MEMORY_ACCESS,
-    HEX_OR_INST,
+    HEX_OR_KEYWORD,
     DECIMAL_OFFSET,
     HEX_OFFSET,
     LEFT_SQ_BRACKET,
@@ -42,7 +41,7 @@ void init_instruction_set()
 
 void init_automata()
 {
-    int states_count = 30;
+    int states_count = 43;
     std::map < char, int > states[states_count];
     
     states[0][':'] = 2;
@@ -66,6 +65,7 @@ void init_automata()
     states[3]['w'] = 5;
     states[3]['x'] = 5;
     states[3]['l'] = 11;
+    states[3]['t'] = 32;
 
     states[4]['p'] = 9;
     states[4][':'] = 2;
@@ -88,6 +88,8 @@ void init_automata()
         states[6][c] = 10;
     for(char c = 'q'; c <= 'z'; ++c)
         states[6][c] = 10;
+    for(char c = '0'; c <= '9'; ++c)
+        states[6][c] = 8;
 
     states[7]['a'] = 10;
     states[7]['b'] = 10;
@@ -100,6 +102,9 @@ void init_automata()
 
     for(char c = 'a'; c <= 'z'; ++c)
         states[10][c] = 10;
+    for(char c = '0'; c <= '9'; ++c)
+        states[10][c] = 10;
+    states[10]['.'] = 10;
 
     states[11]['r'] = 9;
     for(char c = 'a'; c <= 'q'; ++c)
@@ -119,11 +124,13 @@ void init_automata()
         states[13][c] = 15;
 
     states[14]['x'] = 16;
+    states[14]['.'] = 15;
     for(char c = '0'; c <= '9'; ++c)
         states[14][c] = 15;
 
     for(char c = '0'; c <= '9'; ++c)
         states[15][c] = 15;
+    states[15]['.'] = 15;
 
     for(char c = '0'; c <= '9'; ++c)
         states[16][c] = 17;
@@ -159,11 +166,39 @@ void init_automata()
 
     states[26]['!'] = 27;
 
+    states[30]['0'] = 31;
+    states[31]['x'] = 1;
+    for(char c = '0'; c <= '9'; ++c)
+        states[31][c] = 1;
+    for(char c = 'a'; c <= 'f'; ++c)
+        states[31][c] = 1;
+
+    states[32]['p'] = 33;
+    for(char c = 'a'; c <= 'o'; ++c)
+        states[32][c] = 10;
+    for(char c = 'q'; c <= 'z'; ++c)
+        states[32][c] = 10;
+    states[33]['i'] = 34;
+    states[34]['d'] = 35;
+    states[35]['r'] = 36;
+    states[36]['_'] = 37;
+    states[36]['r'] = 38;
+    states[38]['O'] = 39;
+    states[39]['_'] = 37;
+    states[37]['e'] = 40;
+    states[40]['l'] = 41;
+    states[41]['0'] = 42;
+    states[41]['1'] = 42;
+    states[41]['2'] = 42;
+    states[41]['3'] = 42;
+
+
     int i;
     for(i = 0; i < states_count; ++i)
     {
         automata.push(states[i]);
     }
+    automata.add_start_state(30);
     automata.add_start_state(3);
     automata.add_start_state(0);
     automata.add_start_state(12);
@@ -171,20 +206,21 @@ void init_automata()
     automata.add_start_state(21);
     automata.add_start_state(24);
     automata.add_start_state(26);
-    automata.add_accept(std::make_pair(0, HEX_OR_INST));
+    automata.add_accept(std::make_pair(0, HEX_OR_KEYWORD));
     automata.add_accept(std::make_pair(1, HEX_NUMBER));
     automata.add_accept(std::make_pair(2, ADDRESS));
     automata.add_accept(std::make_pair(4, HEX_NUMBER));
     automata.add_accept(std::make_pair(8, REGISTER));
     automata.add_accept(std::make_pair(9, REGISTER));
-    automata.add_accept(std::make_pair(10, INSTRUCTION));
+    automata.add_accept(std::make_pair(10, KEYWORD));
     automata.add_accept(std::make_pair(15, DECIMAL_OFFSET));
     automata.add_accept(std::make_pair(17, HEX_OFFSET));
     automata.add_accept(std::make_pair(20, COMMENT));
     automata.add_accept(std::make_pair(25, COMMENT));
-    automata.add_accept(std::make_pair(22, FUNC_NAME));
+    automata.add_accept(std::make_pair(23, FUNC_NAME));
     automata.add_accept(std::make_pair(27, EXCLAMATION));
     automata.add_accept(std::make_pair(29, FUNC_NAME));
+    automata.add_accept(std::make_pair(42, REGISTER));
 }
 
 void init_register_automata()
@@ -213,11 +249,9 @@ char* type_to_str(int a)
             return (char*)"coment";
         case OFFSET:
             return (char*)"offset";
-        case MEMORY_ACCESS:
-            return (char*)"memory access";
-        case HEX_OR_INST:
+        case HEX_OR_KEYWORD:
             return (char*)"hex or instruction";
-        case INSTRUCTION:
+        case KEYWORD:
             return (char*)"instruction";
         case DECIMAL_OFFSET:
             return (char*)"decimal offset";

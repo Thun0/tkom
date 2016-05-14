@@ -25,7 +25,6 @@
    1fa34:   d65f03c0    ret
    1fa38:   90000905    adrp    x5, 13f000 <h_errlist@@GLIBC_2.17+0x8b0>
    1fa3c:   f9472ca5    ldr x5, [x5,#3672]
-   1fa40:   d53bd046    mrs x6, tpidr_el0
    1fa44:   2a0003e4    mov w4, w0
    1fa48:   b86568c0    ldr w0, [x6,x5]
    1fa4c:   7100241f    cmp w0, #0x9

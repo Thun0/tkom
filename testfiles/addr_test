@@ -13,8 +13,6 @@ fp sp,x2
 x20 lr
 w23
 x37
-sdfayh
-rfetgrst
 add
 sub
 b.eq

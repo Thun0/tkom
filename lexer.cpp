@@ -1,7 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <stdint.h>
 #include <map>
+#include <set>
 #include <utility>
 
 #include "automata.h"
@@ -25,18 +27,48 @@ enum Type
     EXCLAMATION
 };
 
+#define SKIP 3026478 // hash dla wielokropka
+
 Options options;
 Automata automata; //[0-9a-f]+:?
+std::set <uint64_t> instruction_set;
+std::set <uint64_t> condition_set;
+std::set <uint64_t> ignore_instruction_set;
 
-void init_instruction_set()
+void initialize_set(char* filename, std::set <uint64_t>* s)
 {
-    FILE* file = fopen("res/arm-instruction-set", "r+");
+    FILE* file = fopen(filename, "r+");
     if(!file)
     {
         print_fatal("Couldn't open instruction-set file!\n");
     }
     print_log("Instruction set file opened\n");
+
+    char* line = NULL;
+    size_t line_len = 0;
+    while(getline(&line, &line_len, file) != -1)
+    {
+        line_len = strlen(line);
+        if(line[line_len-1] == '\n')
+            line[--line_len] = '\0';
+        //print_log("Read instruction: %s\n", line);
+        unsigned it = 0;
+        uint64_t hash = 0;
+        while(it < line_len)
+        {
+            hash <<= 8;
+            hash += line[it++];
+        }
+        s->insert(hash);
+        //print_log("Hash for instruction %s added: %llu\n", line, hash);
+        //printf("%s %llu\n", line, hash);
+        line = NULL;
+        line_len = 0;
+    }
+    print_log("Filled instruction set\n");
     fclose(file);
+
+
 }
 
 void init_automata()
@@ -78,9 +110,11 @@ void init_automata()
     for(char c = 'q'; c <= 'z'; ++c)
         states[4][c] = 10;
 
+    states[5]['z'] = 42;
+    states[42]['r'] = 9;
     for(char c = '0'; c <= '9'; ++c)
         states[5][c] = 8;
-    for(char c = 'a'; c <= 'z'; ++c)
+    for(char c = 'a'; c <= 'y'; ++c)
         states[5][c] = 10;
 
     states[6]['p'] = 9;
@@ -187,10 +221,10 @@ void init_automata()
     states[39]['_'] = 37;
     states[37]['e'] = 40;
     states[40]['l'] = 41;
-    states[41]['0'] = 42;
-    states[41]['1'] = 42;
-    states[41]['2'] = 42;
-    states[41]['3'] = 42;
+    states[41]['0'] = 9;
+    states[41]['1'] = 9;
+    states[41]['2'] = 9;
+    states[41]['3'] = 9;
 
 
     int i;
@@ -220,12 +254,6 @@ void init_automata()
     automata.add_accept(std::make_pair(23, FUNC_NAME));
     automata.add_accept(std::make_pair(27, EXCLAMATION));
     automata.add_accept(std::make_pair(29, FUNC_NAME));
-    automata.add_accept(std::make_pair(42, REGISTER));
-}
-
-void init_register_automata()
-{
-    std::map < char, int > state0, state1;
 }
 
 void printUsage()
@@ -277,6 +305,7 @@ void process_line(char* line)
     int it = 0;
     int buf_idx = 0;
     char buf[len];
+    uint64_t hash = 0;
     while(it < len && (line[it] == ' ' || line[it] == '\t' || line[it] == '\n')) it++;
     while(it < len)
     {
@@ -292,6 +321,40 @@ void process_line(char* line)
                     automata.reset();
                     return;
                 }
+                else if(status == HEX_OR_KEYWORD)
+                {
+                    if(instruction_set.find(hash) != instruction_set.end())
+                    {
+                        print_log("Token accepted: %s is instruction or hex number\n", buf);   
+                    }
+                    else if (condition_set.find(hash) != condition_set.end())
+                    {
+                        print_log("Token accepted: %s is condition flag\n", buf);   
+                    }
+                    else
+                    {
+                        print_log("Token accepted: %s is %s\n", buf, type_to_str(HEX_NUMBER));
+                    }
+                }
+                else if(status == KEYWORD)
+                {
+                    if(hash == SKIP)
+                    {
+                        print_log("Token accepted: ... is skip\n");
+                    }
+                    else if(instruction_set.find(hash) != instruction_set.end())
+                    {
+                        print_log("Token accepted: %s is instruction\n", buf);   
+                    }
+                    else if (condition_set.find(hash) != condition_set.end())
+                    {
+                        print_log("Token accepted: %s is condition flag\n", buf);   
+                    }
+                    else
+                    {
+                        print_fatal("Token rejected: %s -- not in instruction set\nLine:%s\n", buf, line);
+                    }
+                }
                 else if(status != -1)
                 {
                     print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
@@ -302,6 +365,7 @@ void process_line(char* line)
                 }
                 buf_idx = 0;
                 automata.reset();
+                hash = 0;
             }//else is empty string
             if(line[it] == ']')
             {
@@ -319,6 +383,8 @@ void process_line(char* line)
         else
         {
             buf[buf_idx++] = line[it];
+            hash <<= 8;
+            hash += line[it];
         }
 
         it++;
@@ -334,7 +400,9 @@ int main(int argc, char** argv)
     }
     options.verbose = true;
     char* filepath = argv[1];
-    init_instruction_set();
+    initialize_set((char*)"res/arm-instruction-set", &instruction_set);
+    initialize_set((char*)"res/conditions", &condition_set);
+    //std::set <uint64_t> ignore_instruction_set;
     FILE* input_file = fopen(filepath, "r");
     if(input_file == NULL)
     {

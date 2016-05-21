@@ -6,43 +6,46 @@
 #include <set>
 #include <utility>
 
-#include "automata.h"
 #include "options.h"
 #include "output.h"
 
 enum Type
 {
-    ADDRESS = 1,
-    KEYWORD,
-    HEX_NUMBER,
-    REGISTER,
-    COMMENT,
-    OFFSET,
-    HEX_OR_KEYWORD,
-    DECIMAL_OFFSET,
-    HEX_OFFSET,
+    DEC,
+    HEX,
+    STRING,
+    PLUS,
+    MINUS,
     LEFT_SQ_BRACKET,
     RIGHT_SQ_BRACKET,
-    FUNC_NAME,
-    EXCLAMATION
+    COMMA,
+    DOT,
+    COLON,
+    SEMICOLON,
+    LESS_THAN,
+    MORE_THAN,
+    AT,
+    HASH,
+    FLOOR,
+    DOUBLE_SLASH,
+    EXCLAMATION,
+    WHITESPACE,
+    BAD_TOKEN
 };
 
-#define SKIP 3026478 // hash dla wielokropka
-
+FILE* input_file;
 Options options;
-Automata automata; //[0-9a-f]+:?
 std::set <uint64_t> instruction_set;
 std::set <uint64_t> condition_set;
-std::set <uint64_t> ignore_instruction_set;
 
 void initialize_set(char* filename, std::set <uint64_t>* s)
 {
     FILE* file = fopen(filename, "r+");
     if(!file)
     {
-        print_fatal("Couldn't open instruction-set file!\n");
+        print_fatal("Couldn't open set file!\n");
     }
-    print_log("Instruction set file opened\n");
+    print_log("Set file opened\n");
 
     char* line = NULL;
     size_t line_len = 0;
@@ -51,7 +54,6 @@ void initialize_set(char* filename, std::set <uint64_t>* s)
         line_len = strlen(line);
         if(line[line_len-1] == '\n')
             line[--line_len] = '\0';
-        //print_log("Read instruction: %s\n", line);
         unsigned it = 0;
         uint64_t hash = 0;
         while(it < line_len)
@@ -60,200 +62,11 @@ void initialize_set(char* filename, std::set <uint64_t>* s)
             hash += line[it++];
         }
         s->insert(hash);
-        //print_log("Hash for instruction %s added: %llu\n", line, hash);
-        //printf("%s %llu\n", line, hash);
         line = NULL;
         line_len = 0;
     }
-    print_log("Filled instruction set\n");
+    print_log("Filled set\n");
     fclose(file);
-
-
-}
-
-void init_automata()
-{
-    int states_count = 43;
-    std::map < char, int > states[states_count];
-    
-    states[0][':'] = 2;
-    states[0]['.'] = 10;
-    for(char c = '0'; c <= '9'; ++c)
-        states[0][c] = 1;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[0][c] = 0;
-    for(char c = 'g'; c <= 'z'; ++c)
-        states[0][c] = 10;
-
-    states[1][':'] = 2;
-    for(char c = '0'; c <= '9'; ++c)
-        states[1][c] = 1;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[1][c] = 1;
-
-    states[3]['f'] = 4;
-    states[3]['p'] = 7;
-    states[3]['s'] = 6;
-    states[3]['w'] = 5;
-    states[3]['x'] = 5;
-    states[3]['l'] = 11;
-    states[3]['t'] = 32;
-
-    states[4]['p'] = 9;
-    states[4][':'] = 2;
-    for(char c = '0'; c <= '9'; ++c)
-        states[4][c] = 1;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[4][c] = 0;
-    for(char c = 'g'; c <= 'o'; ++c)
-        states[4][c] = 10;
-    for(char c = 'q'; c <= 'z'; ++c)
-        states[4][c] = 10;
-
-    states[5]['z'] = 42;
-    states[42]['r'] = 9;
-    for(char c = '0'; c <= '9'; ++c)
-        states[5][c] = 8;
-    for(char c = 'a'; c <= 'y'; ++c)
-        states[5][c] = 10;
-
-    states[6]['p'] = 9;
-    for(char c = 'a'; c <= 'o'; ++c)
-        states[6][c] = 10;
-    for(char c = 'q'; c <= 'z'; ++c)
-        states[6][c] = 10;
-    for(char c = '0'; c <= '9'; ++c)
-        states[6][c] = 8;
-
-    states[7]['a'] = 10;
-    states[7]['b'] = 10;
-    states[7]['c'] = 9;
-    for(char c = 'd'; c <= 'z'; ++c)
-        states[7][c] = 10;
-
-    for(char c = '0'; c <= '9'; ++c)
-        states[8][c] = 9;
-
-    for(char c = 'a'; c <= 'z'; ++c)
-        states[10][c] = 10;
-    for(char c = '0'; c <= '9'; ++c)
-        states[10][c] = 10;
-    states[10]['.'] = 10;
-
-    states[11]['r'] = 9;
-    for(char c = 'a'; c <= 'q'; ++c)
-        states[11][c] = 10;
-    for(char c = 's'; c <= 'z'; ++c)
-        states[11][c] = 10;
-
-    states[12]['#'] = 13;
-    
-    states[13]['-'] = 28;
-    states[28]['0'] = 14;
-    for(char c = '1'; c <= '9'; ++c)
-        states[28][c] = 15;
-
-    states[13]['0'] = 14;
-    for(char c = '1'; c <= '9'; ++c)
-        states[13][c] = 15;
-
-    states[14]['x'] = 16;
-    states[14]['.'] = 15;
-    for(char c = '0'; c <= '9'; ++c)
-        states[14][c] = 15;
-
-    for(char c = '0'; c <= '9'; ++c)
-        states[15][c] = 15;
-    states[15]['.'] = 15;
-
-    for(char c = '0'; c <= '9'; ++c)
-        states[16][c] = 17;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[16][c] = 17;
-
-    for(char c = '0'; c <= '9'; ++c)
-        states[17][c] = 17;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[17][c] = 17;
-
-    states[18]['/'] = 19;
-    states[19]['/'] = 20;
-
-    states[21]['<'] = 22;
-    states[22]['>'] = 23;
-    for(char c = '0'; c <= '9'; ++c)
-        states[22][c] = 22;
-    for(char c = 'a'; c <= 'z'; ++c)
-        states[22][c] = 22;
-    for(char c = 'A'; c <= 'Z'; ++c)
-        states[22][c] = 22;
-    states[22][':'] = 22;
-    states[22]['+'] = 22;
-    states[22]['-'] = 22;
-    states[22]['.'] = 22;
-    states[22]['_'] = 22;
-    states[22]['@'] = 22;
-
-    states[23][':'] = 29;
-
-    states[24][';'] = 25;
-
-    states[26]['!'] = 27;
-
-    states[30]['0'] = 31;
-    states[31]['x'] = 1;
-    for(char c = '0'; c <= '9'; ++c)
-        states[31][c] = 1;
-    for(char c = 'a'; c <= 'f'; ++c)
-        states[31][c] = 1;
-
-    states[32]['p'] = 33;
-    for(char c = 'a'; c <= 'o'; ++c)
-        states[32][c] = 10;
-    for(char c = 'q'; c <= 'z'; ++c)
-        states[32][c] = 10;
-    states[33]['i'] = 34;
-    states[34]['d'] = 35;
-    states[35]['r'] = 36;
-    states[36]['_'] = 37;
-    states[36]['r'] = 38;
-    states[38]['O'] = 39;
-    states[39]['_'] = 37;
-    states[37]['e'] = 40;
-    states[40]['l'] = 41;
-    states[41]['0'] = 9;
-    states[41]['1'] = 9;
-    states[41]['2'] = 9;
-    states[41]['3'] = 9;
-
-
-    int i;
-    for(i = 0; i < states_count; ++i)
-    {
-        automata.push(states[i]);
-    }
-    automata.add_start_state(30);
-    automata.add_start_state(3);
-    automata.add_start_state(0);
-    automata.add_start_state(12);
-    automata.add_start_state(18);
-    automata.add_start_state(21);
-    automata.add_start_state(24);
-    automata.add_start_state(26);
-    automata.add_accept(std::make_pair(0, HEX_OR_KEYWORD));
-    automata.add_accept(std::make_pair(1, HEX_NUMBER));
-    automata.add_accept(std::make_pair(2, ADDRESS));
-    automata.add_accept(std::make_pair(4, HEX_NUMBER));
-    automata.add_accept(std::make_pair(8, REGISTER));
-    automata.add_accept(std::make_pair(9, REGISTER));
-    automata.add_accept(std::make_pair(10, KEYWORD));
-    automata.add_accept(std::make_pair(15, DECIMAL_OFFSET));
-    automata.add_accept(std::make_pair(17, HEX_OFFSET));
-    automata.add_accept(std::make_pair(20, COMMENT));
-    automata.add_accept(std::make_pair(25, COMMENT));
-    automata.add_accept(std::make_pair(23, FUNC_NAME));
-    automata.add_accept(std::make_pair(27, EXCLAMATION));
-    automata.add_accept(std::make_pair(29, FUNC_NAME));
 }
 
 void printUsage()
@@ -263,132 +76,197 @@ void printUsage()
     printf("\n");
 }
 
-char* type_to_str(int a)
+char* type_to_string(Type t)
 {
-    switch(a)
+    switch(t)
     {
-        case ADDRESS:
-            return (char*)"address of instruction";
-        case HEX_NUMBER:
-            return (char*)"hex number";
-        case REGISTER:
-            return (char*)"register";
-        case COMMENT:
-            return (char*)"coment";
-        case OFFSET:
-            return (char*)"offset";
-        case HEX_OR_KEYWORD:
-            return (char*)"hex or instruction";
-        case KEYWORD:
-            return (char*)"instruction";
-        case DECIMAL_OFFSET:
-            return (char*)"decimal offset";
-        case HEX_OFFSET:
-            return (char*)"hex offset";
+        case DEC:
+            return (char*)"DEC";
+        case HEX:
+            return (char*)"HEX";
+        case STRING:
+            return (char*)"STRING";
+        case PLUS:
+            return (char*)"PLUS";
+        case MINUS:
+            return (char*)"MINUS";
         case LEFT_SQ_BRACKET:
-            return (char*)"left square bracket";
+            return (char*)"LEFT_SQ_BRACKET";
         case RIGHT_SQ_BRACKET:
-            return (char*)"right square bracket";
-        case FUNC_NAME:
-            return (char*)"function name";
+            return (char*)"RIGHT_SQ_BRACKET";
+        case COMMA:
+            return (char*)"COMMA";
+        case DOT:
+            return (char*)"DOT";
+        case COLON:
+            return (char*)"COLON";
+        case SEMICOLON:
+            return (char*)"SEMICOLON";
+        case LESS_THAN:
+            return (char*)"LESS_THAN";
+        case MORE_THAN:
+            return (char*)"MORE_THAN";
+        case AT:
+            return (char*)"AT";
+        case HASH:
+            return (char*)"HASH";
+        case FLOOR:
+            return (char*)"FLOOR";
+        case DOUBLE_SLASH:
+            return (char*)"DOUBLE_SLASH";
         case EXCLAMATION:
-            return (char*)"exclamation mark";
+            return (char*)"EXCLAMATION";
+        case WHITESPACE:
+            return (char*)"WHITESPACE";
+        case BAD_TOKEN:
+            return (char*)"BAD_TOKEN";
         default:
-            print_fatal("Type unknown\n");
+            return (char*)"INVALID_TYPE";
     }
-    return (char*)"bad type";
 }
 
-void process_line(char* line)
+bool is_whitespace(char c)
 {
-    int len = strlen(line);
-    int it = 0;
-    int buf_idx = 0;
-    char buf[len];
-    uint64_t hash = 0;
-    while(it < len && (line[it] == ' ' || line[it] == '\t' || line[it] == '\n')) it++;
-    while(it < len)
+    return (c == '\n' || c == ' ' || c == '\r' || c == '\t');
+}
+
+bool is_digit(char c)
+{
+    return (c >= '0' && c <= '9');
+}
+
+bool is_hex(char c)
+{
+    return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
+}
+
+bool is_alpha(char c)
+{
+    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+}
+
+Type get_token(char &c)
+{
+    if(is_whitespace(c))
     {
-        if(line[it] == ' ' || line[it] == '\n' || line[it] == '\t' || line[it] == ',' || line[it] == ']')
+        while(is_whitespace(c))
+            c = fgetc(input_file);
+        return WHITESPACE;
+    }
+    if(c == '/')
+    {
+        c = fgetc(input_file);
+        if(c == '/')
         {
-            if(automata.is_started())
-            {
-                buf[buf_idx] = '\0';
-                int status = automata.get_accept();
-                if(status == COMMENT)
-                {
-                    print_log("Comment found: %s", &line[it]);
-                    automata.reset();
-                    return;
-                }
-                else if(status == HEX_OR_KEYWORD)
-                {
-                    if(instruction_set.find(hash) != instruction_set.end())
-                    {
-                        print_log("Token accepted: %s is instruction or hex number\n", buf);   
-                    }
-                    else if (condition_set.find(hash) != condition_set.end())
-                    {
-                        print_log("Token accepted: %s is condition flag\n", buf);   
-                    }
-                    else
-                    {
-                        print_log("Token accepted: %s is %s\n", buf, type_to_str(HEX_NUMBER));
-                    }
-                }
-                else if(status == KEYWORD)
-                {
-                    if(hash == SKIP)
-                    {
-                        print_log("Token accepted: ... is skip\n");
-                    }
-                    else if(instruction_set.find(hash) != instruction_set.end())
-                    {
-                        print_log("Token accepted: %s is instruction\n", buf);   
-                    }
-                    else if (condition_set.find(hash) != condition_set.end())
-                    {
-                        print_log("Token accepted: %s is condition flag\n", buf);   
-                    }
-                    else
-                    {
-                        print_fatal("Token rejected: %s -- not in instruction set\nLine:%s\n", buf, line);
-                    }
-                }
-                else if(status != -1)
-                {
-                    print_log("Token accepted: %s is %s\n", buf, type_to_str(status));
-                }
-                else
-                {
-                    print_error("Token rejected %s\n", buf);
-                }
-                buf_idx = 0;
-                automata.reset();
-                hash = 0;
-            }//else is empty string
-            if(line[it] == ']')
-            {
-                print_log("Token accepted: ] is %s\n", type_to_str(RIGHT_SQ_BRACKET));
-            }
+            c = fgetc(input_file);
+            return DOUBLE_SLASH;
         }
-        else if(line[it] == '[' && !automata.is_started())
+        else 
         {
-            print_log("Token accepted: [ is %s\n", type_to_str(LEFT_SQ_BRACKET));
+            c = fgetc(input_file);
+            return BAD_TOKEN;
         }
-        else if(automata.next_state(line[it]) == -1)
+    }
+    if(c == '!')
+    {
+        c = fgetc(input_file);
+        return EXCLAMATION;
+    }
+    if(c == '#')
+    {
+        c = fgetc(input_file);
+        return HASH;
+    }
+    if(c == '[')
+    {
+        c = fgetc(input_file);
+        return LEFT_SQ_BRACKET;
+    }
+    if(c == ']')
+    {
+        c = fgetc(input_file);
+        return RIGHT_SQ_BRACKET;
+    }
+    if(c == ',')
+    {
+        c = fgetc(input_file);
+        return COMMA;
+    }
+    if(c == '@')
+    {
+        c = fgetc(input_file);
+        return AT;
+    }
+    if(c == '+')
+    {
+        c = fgetc(input_file);
+        return PLUS;
+    }
+    if(c == '-')
+    {
+        c = fgetc(input_file);
+        return MINUS;
+    }
+    if(c == '<')
+    {
+        c = fgetc(input_file);
+        return LESS_THAN;
+    }
+    if(c == '>')
+    {
+        c = fgetc(input_file);
+        return MORE_THAN;
+    }
+    if(c == '0')
+    {
+        c = fgetc(input_file);
+        if(c == 'x')
         {
-            print_fatal("Wrong character \'%c\' in line: %s", line[it], line);
+            c = fgetc(input_file);
+            while(is_hex(c))
+                c = fgetc(input_file);
+            return HEX;
+        }
+        while(is_digit(c))
+        {
+            c = fgetc(input_file);
+        }
+        if(is_hex(c))
+        {
+            while(is_hex(c))
+                c = fgetc(input_file);
+            return HEX;
         }
         else
         {
-            buf[buf_idx++] = line[it];
-            hash <<= 8;
-            hash += line[it];
+            return DEC;
         }
-
-        it++;
     }
+    if(is_digit(c))
+    {
+        while(is_digit(c))
+        {
+            c = fgetc(input_file);
+        }
+        if(is_hex(c))
+        {
+            while(is_hex(c))
+                c = fgetc(input_file);
+            return HEX;
+        }
+        else
+        {
+            return DEC;
+        }
+    } 
+    if(is_hex(c))
+    {
+        while(is_hex(c))
+                c = fgetc(input_file);
+            return HEX;
+    }
+    c = fgetc(input_file);
+    return BAD_TOKEN;
 }
 
 int main(int argc, char** argv)
@@ -399,25 +277,25 @@ int main(int argc, char** argv)
         return 0;
     }
     options.verbose = true;
-    char* filepath = argv[1];
-    initialize_set((char*)"res/arm-instruction-set", &instruction_set);
-    initialize_set((char*)"res/conditions", &condition_set);
-    //std::set <uint64_t> ignore_instruction_set;
-    FILE* input_file = fopen(filepath, "r");
+    char* filepath = argv[1];    
+    input_file = fopen(filepath, "r");
     if(input_file == NULL)
     {
         print_fatal("Error while reading file: %s\n", filepath);
     }
     print_log("File \"%s\" opened\n", filepath);
-    init_automata();
+    initialize_set((char*)"res/arm-instruction-set", &instruction_set);
+    initialize_set((char*)"res/conditions", &condition_set);
 
-    char* line = NULL;
-    size_t line_len = 0;
-    while(getline(&line, &line_len, input_file) != -1)
+    char c = fgetc(input_file);
+    while((c != EOF))
     {
-        process_line(line);
-        line = NULL;
-        line_len = 0;
+        //printf("char %c\n", c);
+        Type token = get_token(c);
+        //if(token != WHITESPACE)
+            printf("%s\n", type_to_string(token));
+        //if(token == BAD_TOKEN)
+        //    return -1;
     }
     print_log("End of file\n");
     print_log("Finished\n");

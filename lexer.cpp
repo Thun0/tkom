@@ -2,9 +2,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdint.h>
-#include <map>
 #include <set>
-#include <utility>
+#include <string>
 
 #include "options.h"
 #include "output.h"
@@ -30,13 +29,17 @@ enum Type
     DOUBLE_SLASH,
     EXCLAMATION,
     WHITESPACE,
-    BAD_TOKEN
+    BAD_TOKEN,
+    REGISTER,
+    INSTRUCTION,
+    CONDITION
 };
 
 FILE* input_file;
 Options options;
 std::set <uint64_t> instruction_set;
 std::set <uint64_t> condition_set;
+std::set <uint64_t> register_set;
 
 void initialize_set(char* filename, std::set <uint64_t>* s)
 {
@@ -60,6 +63,10 @@ void initialize_set(char* filename, std::set <uint64_t>* s)
         {
             hash <<= 8;
             hash += line[it++];
+        }
+        if(s->find(hash) != s->end())
+        {
+            print_fatal("TWO STRINGS WITH SAME HASH!\n");
         }
         s->insert(hash);
         line = NULL;
@@ -120,6 +127,12 @@ char* type_to_string(Type t)
             return (char*)"WHITESPACE";
         case BAD_TOKEN:
             return (char*)"BAD_TOKEN";
+        case REGISTER:
+            return (char*)"REGISTER";
+        case INSTRUCTION:
+            return (char*)"INSTRUCTION";
+        case CONDITION:
+            return (char*)"CONDITION";
         default:
             return (char*)"INVALID_TYPE";
     }
@@ -145,27 +158,134 @@ bool is_alpha(char c)
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
 }
 
-Type get_token(char &c)
+Type get_token(char &c, std::string &str)
 {
     if(is_whitespace(c))
     {
         while(is_whitespace(c))
+        {
+            str += c;
             c = fgetc(input_file);
+        }
         return WHITESPACE;
     }
+    if(c == '0')
+    {
+        str += c;
+        c = fgetc(input_file);
+        if(c == 'x')
+        {
+            str += c;
+            c = fgetc(input_file);
+            while(is_hex(c))
+            {
+                str += c;
+                c = fgetc(input_file);
+            }
+            return HEX;
+        }
+        while(is_digit(c))
+        {
+            str += c;
+            c = fgetc(input_file);
+        }
+        if(is_hex(c))
+        {
+            while(is_hex(c))
+            {
+                str += c;
+                c = fgetc(input_file);
+            }
+            return HEX;
+        }
+        else
+        {
+            return DEC;
+        }
+    }
+    if(is_digit(c))
+    {
+        while(is_digit(c))
+        {
+            str += c;
+            c = fgetc(input_file);
+        }
+        if(is_hex(c))
+        {
+            while(is_hex(c))
+            {
+                str += c;
+                c = fgetc(input_file);
+            }
+            return HEX;
+        }
+        else
+        {
+            return DEC;
+        }
+    } 
+    if(is_alpha(c) || c == '.' || c == '_')
+    {
+        int hash = 0;
+        if(is_hex(c))
+        {
+            while(is_hex(c))
+            {
+                hash <<= 8;
+                hash += c;
+                str += c;
+                c = fgetc(input_file);
+            }
+            if(is_alpha(c) || is_digit(c) || c == '.' || c =='_')
+            {
+                while(is_alpha(c) || is_digit(c) || c == '.' || c =='_')
+                {
+                    hash <<= 8;
+                    hash += c;
+                    str += c;
+                    c = fgetc(input_file);
+                }
+                if(instruction_set.find(hash) != instruction_set.end())
+                    return INSTRUCTION;
+                if(condition_set.find(hash) != condition_set.end())
+                    return CONDITION;
+                if(register_set.find(hash) != register_set.end())
+                    return REGISTER;
+                return STRING;
+            }
+            else
+                return HEX;
+        }
+        else
+        {
+            while(is_alpha(c) || is_digit(c) || c == '.' || c =='_')
+            {
+                hash <<= 8;
+                hash += c;
+                str += c;
+                c = fgetc(input_file);
+            }
+            if(instruction_set.find(hash) != instruction_set.end())
+                return INSTRUCTION;
+            if(condition_set.find(hash) != condition_set.end())
+                return CONDITION;
+            if(register_set.find(hash) != register_set.end())
+                return REGISTER;
+            return STRING;
+        }
+    }
+    str += c;
     if(c == '/')
     {
         c = fgetc(input_file);
+        str += c;
         if(c == '/')
         {
             c = fgetc(input_file);
             return DOUBLE_SLASH;
         }
         else 
-        {
-            c = fgetc(input_file);
             return BAD_TOKEN;
-        }
     }
     if(c == '!')
     {
@@ -176,6 +296,16 @@ Type get_token(char &c)
     {
         c = fgetc(input_file);
         return HASH;
+    }
+    if(c == ':')
+    {
+        c = fgetc(input_file);
+        return COLON;
+    }
+    if(c == ';')
+    {
+        c = fgetc(input_file);
+        return SEMICOLON;
     }
     if(c == '[')
     {
@@ -217,55 +347,7 @@ Type get_token(char &c)
         c = fgetc(input_file);
         return MORE_THAN;
     }
-    if(c == '0')
-    {
-        c = fgetc(input_file);
-        if(c == 'x')
-        {
-            c = fgetc(input_file);
-            while(is_hex(c))
-                c = fgetc(input_file);
-            return HEX;
-        }
-        while(is_digit(c))
-        {
-            c = fgetc(input_file);
-        }
-        if(is_hex(c))
-        {
-            while(is_hex(c))
-                c = fgetc(input_file);
-            return HEX;
-        }
-        else
-        {
-            return DEC;
-        }
-    }
-    if(is_digit(c))
-    {
-        while(is_digit(c))
-        {
-            c = fgetc(input_file);
-        }
-        if(is_hex(c))
-        {
-            while(is_hex(c))
-                c = fgetc(input_file);
-            return HEX;
-        }
-        else
-        {
-            return DEC;
-        }
-    } 
-    if(is_hex(c))
-    {
-        while(is_hex(c))
-                c = fgetc(input_file);
-            return HEX;
-    }
-    c = fgetc(input_file);
+
     return BAD_TOKEN;
 }
 
@@ -286,16 +368,17 @@ int main(int argc, char** argv)
     print_log("File \"%s\" opened\n", filepath);
     initialize_set((char*)"res/arm-instruction-set", &instruction_set);
     initialize_set((char*)"res/conditions", &condition_set);
+    initialize_set((char*)"res/registers", &register_set);
 
     char c = fgetc(input_file);
     while((c != EOF))
     {
-        //printf("char %c\n", c);
-        Type token = get_token(c);
-        //if(token != WHITESPACE)
-            printf("%s\n", type_to_string(token));
-        //if(token == BAD_TOKEN)
-        //    return -1;
+        std::string str;
+        Type token = get_token(c, str);
+        if(token != WHITESPACE)
+            printf("'%s' is %s\n", str.c_str(), type_to_string(token));
+        if(token == BAD_TOKEN)
+            return -1;
     }
     print_log("End of file\n");
     print_log("Finished\n");

@@ -94,35 +94,35 @@ char* type_to_string(Type t)
         case STRING:
             return (char*)"STRING";
         case PLUS:
-            return (char*)"PLUS";
+            return (char*)"+";
         case MINUS:
-            return (char*)"MINUS";
+            return (char*)"-";
         case LEFT_SQ_BRACKET:
-            return (char*)"LEFT_SQ_BRACKET";
+            return (char*)"[";
         case RIGHT_SQ_BRACKET:
-            return (char*)"RIGHT_SQ_BRACKET";
+            return (char*)"]";
         case COMMA:
-            return (char*)"COMMA";
+            return (char*)",";
         case DOT:
-            return (char*)"DOT";
+            return (char*)".";
         case COLON:
-            return (char*)"COLON";
+            return (char*)":";
         case SEMICOLON:
-            return (char*)"SEMICOLON";
+            return (char*)";";
         case LESS_THAN:
-            return (char*)"LESS_THAN";
+            return (char*)"<";
         case MORE_THAN:
-            return (char*)"MORE_THAN";
+            return (char*)">";
         case AT:
-            return (char*)"AT";
+            return (char*)"@";
         case HASH:
-            return (char*)"HASH";
+            return (char*)"#";
         case FLOOR:
             return (char*)"FLOOR";
         case DOUBLE_SLASH:
-            return (char*)"DOUBLE_SLASH";
+            return (char*)"//";
         case EXCLAMATION:
-            return (char*)"EXCLAMATION";
+            return (char*)"!";
         case WHITESPACE:
             return (char*)"WHITESPACE";
         case BAD_TOKEN:
@@ -160,6 +160,7 @@ bool is_alpha(char c)
 
 Type get_token(char &c, std::string &str)
 {
+    str = "";
     if(is_whitespace(c))
     {
         while(is_whitespace(c))
@@ -347,8 +348,86 @@ Type get_token(char &c, std::string &str)
         c = fgetc(input_file);
         return MORE_THAN;
     }
-
     return BAD_TOKEN;
+}
+
+
+
+/**************************/
+/****     PARSER       ****/
+/**************************/
+void check_next_token(Type token, char& c, std::string& str)
+{
+    Type read_token = get_token(c, str);
+    printf("Got token: %s\n", str.c_str());
+    if(read_token != token)
+    {
+        print_fatal("Syntax error: expected %s but got %s which is %s\n", type_to_string(token), str.c_str(), type_to_string(read_token));
+    }
+}
+
+void operands_symbol(char& c, std::string& str)
+{
+    print_fatal("Operands not yet supported\n\n\n");
+}
+
+void instruction_symbol(char& c, std::string& str)
+{
+    check_next_token(INSTRUCTION, c, str);
+    check_next_token(WHITESPACE, c, str);
+    operands_symbol(c, str);
+}
+
+void x_symbol(Type token, char& c, std::string& str)
+{
+    if(token != STRING)
+        print_fatal("Syntax error: expected string but got %s\n", str.c_str());
+    token = get_token(c, str);
+    printf("Got token: %s\n", str.c_str());
+    if(token == MINUS || token == PLUS)
+    {
+        check_next_token(HEX, c, str);
+        check_next_token(MORE_THAN, c, str);
+    }
+    else if(token != MORE_THAN)
+    {
+        print_fatal("Syntax error: expected '>' but got %s which is %s\n", str.c_str(), type_to_string(token));
+    }
+    check_next_token(COLON, c, str);
+    check_next_token(WHITESPACE, c, str);
+}
+
+void start_symbol(Type token, char& c, std::string& str)
+{
+    if(token == HEX)
+    {
+        check_next_token(WHITESPACE, c, str);
+        check_next_token(LESS_THAN, c, str);
+        check_next_token(STRING, c, str);
+        check_next_token(AT, c, str);
+        token = get_token(c, str);
+        printf("Got token: %s\n", str.c_str());
+        if(token == AT)
+        {
+            token = get_token(c, str);
+            printf("Got token: %s\n", str.c_str());
+        }
+        x_symbol(token, c, str);
+    }
+    else if(token == WHITESPACE)
+    {
+        check_next_token(HEX, c, str);
+        check_next_token(COLON, c, str);
+        check_next_token(WHITESPACE, c, str);
+        check_next_token(HEX, c, str);
+        check_next_token(WHITESPACE, c, str);
+        instruction_symbol(c, str);
+    }
+    else
+    {
+        print_fatal("Syntax error: expected starting symbol, got: %s\n", str.c_str());
+    }
+    printf("Finished line, back to starting symbol\n");
 }
 
 int main(int argc, char** argv)
@@ -375,10 +454,12 @@ int main(int argc, char** argv)
     {
         std::string str;
         Type token = get_token(c, str);
-        if(token != WHITESPACE)
-            printf("'%s' is %s\n", str.c_str(), type_to_string(token));
+        printf("Got token: %s\n", str.c_str());
+        //if(token != WHITESPACE)
+        //    print_log("'%s' is %s\n", str.c_str(), type_to_string(token));
         if(token == BAD_TOKEN)
             return -1;
+        start_symbol(token, c, str);
     }
     print_log("End of file\n");
     print_log("Finished\n");

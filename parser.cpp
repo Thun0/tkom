@@ -32,7 +32,9 @@ enum Type
     BAD_TOKEN,
     REGISTER,
     INSTRUCTION,
-    CONDITION
+    CONDITION,
+    NEWLINE,
+    HEX_OR_INSTRUCTION
 };
 
 FILE* input_file;
@@ -133,6 +135,10 @@ char* type_to_string(Type t)
             return (char*)"INSTRUCTION";
         case CONDITION:
             return (char*)"CONDITION";
+        case NEWLINE:
+            return (char*)"NEWLINE";
+        case HEX_OR_INSTRUCTION:
+            return (char*)"HEX_OR_INSTRUCTION";
         default:
             return (char*)"INVALID_TYPE";
     }
@@ -140,7 +146,7 @@ char* type_to_string(Type t)
 
 bool is_whitespace(char c)
 {
-    return (c == '\n' || c == ' ' || c == '\r' || c == '\t');
+    return (c == ' ' || c == '\t');
 }
 
 bool is_digit(char c)
@@ -227,7 +233,7 @@ Type get_token(char &c, std::string &str)
     } 
     if(is_alpha(c) || c == '.' || c == '_')
     {
-        int hash = 0;
+        uint64_t hash = 0;
         if(is_hex(c))
         {
             while(is_hex(c))
@@ -254,6 +260,8 @@ Type get_token(char &c, std::string &str)
                     return REGISTER;
                 return STRING;
             }
+            else if(instruction_set.find(hash) != instruction_set.end())
+                    return HEX_OR_INSTRUCTION;
             else
                 return HEX;
         }
@@ -292,6 +300,11 @@ Type get_token(char &c, std::string &str)
     {
         c = fgetc(input_file);
         return EXCLAMATION;
+    }
+    if(c == '\n')
+    {
+        c = fgetc(input_file);
+        return NEWLINE;
     }
     if(c == '#')
     {
@@ -359,23 +372,169 @@ Type get_token(char &c, std::string &str)
 void check_next_token(Type token, char& c, std::string& str)
 {
     Type read_token = get_token(c, str);
-    printf("Got token: %s\n", str.c_str());
+    if(read_token == HEX_OR_INSTRUCTION && (token == HEX || token == INSTRUCTION))
+        return;
+    if(read_token == DEC && token == HEX)
+        return;
     if(read_token != token)
     {
         print_fatal("Syntax error: expected %s but got %s which is %s\n", type_to_string(token), str.c_str(), type_to_string(read_token));
     }
 }
 
-void operands_symbol(char& c, std::string& str)
+void x_symbol(Type, char&, std::string&);
+
+Type y_symbol(char& c, std::string& str)
 {
-    print_fatal("Operands not yet supported\n\n\n");
+    Type token = get_token(c, str);
+    if(token == HASH)
+    {
+        token = get_token(c, str);
+        if(token == MINUS)
+        {
+            token = get_token(c, str);
+        }
+        if(token != DEC && token != HEX)
+            print_fatal("Syntax error: expected hex or dec but got %s\n", str.c_str());    
+    }
+    else if(token == REGISTER)
+    {
+        token = get_token(c, str);
+        if(token == RIGHT_SQ_BRACKET)
+            return token;
+        if(token == COMMA)
+        {
+            check_next_token(INSTRUCTION, c, str);
+            check_next_token(WHITESPACE, c, str);
+            check_next_token(HASH, c, str);
+            check_next_token(DEC, c, str);
+        }
+        else
+            print_fatal("Syntax error: expected ']' or ',' but got %s\n", str.c_str());
+    }
+    else
+        print_fatal("Syntax error: expected hash or register but got %s\n", str.c_str());
+    return get_token(c, str);
 }
 
-void instruction_symbol(char& c, std::string& str)
+void z_symbol(char& c, std::string& str)
+{
+    check_next_token(WHITESPACE, c, str);
+    Type token = get_token(c, str);
+    if(token == LESS_THAN)
+    {
+        check_next_token(STRING, c, str);
+        check_next_token(AT, c, str);
+        token = get_token(c, str);
+        if(token == AT)
+        {
+            token = get_token(c, str);
+        }
+        x_symbol(token, c, str);
+    }
+    else if(token == SEMICOLON)
+    {
+        check_next_token(WHITESPACE, c, str);
+        check_next_token(STRING, c, str);
+    }
+}
+
+Type operands_symbol(char& c, std::string& str)
+{
+    Type token = get_token(c, str);
+    for(int i = 0; i < 4; ++i)
+    {
+        if(token == REGISTER)
+        {
+            token = get_token(c, str);
+        }
+        else if(token == HASH)
+        {
+            token = get_token(c, str);
+            if(token == MINUS)
+                token = get_token(c, str);
+            if(token != DEC && token != HEX)
+                print_fatal("Syntax error: expected hex or dec but got %s\n", str.c_str());
+            token = get_token(c, str);
+        }
+        else if(token == LEFT_SQ_BRACKET)
+        {
+            check_next_token(REGISTER, c, str);
+            token = get_token(c, str);
+            if(token == COMMA)
+            {
+                token = y_symbol(c, str);
+            }
+            if(token != RIGHT_SQ_BRACKET)
+                print_fatal("Syntax error: expected ',' or ']' but got %s\n", str.c_str());
+            token = get_token(c, str);
+            if(token == EXCLAMATION)
+                token = get_token(c, str);
+        }
+        else if(token == HEX || token == DEC)
+        {
+            z_symbol(c, str);
+            token = get_token(c, str);
+        }
+        else if(token == STRING || token == CONDITION)
+        {
+            token = get_token(c, str);
+        }
+        else if(token == INSTRUCTION)
+        {
+            token = get_token(c, str);
+            if(token == NEWLINE)
+                return token;
+            if(token != WHITESPACE)
+                print_fatal("Syntax error: expected WHITESPACE but got %s\n", str.c_str());
+            check_next_token(HASH, c, str);
+            check_next_token(DEC, c, str);
+            token = get_token(c, str);   
+        }
+        else
+            break;
+        if(token == COMMA)
+        {
+            token = get_token(c, str);
+            if(token == WHITESPACE)
+                token = get_token(c, str);
+        }
+    }
+    return token;
+}
+
+void comment_symbol(char& c, std::string& str)
+{
+    Type token = get_token(c, str);
+    if(token == DOUBLE_SLASH)
+    {
+        check_next_token(WHITESPACE, c, str);
+        check_next_token(HASH, c, str);
+        token = get_token(c, str);
+        if(token == MINUS)
+            check_next_token(DEC, c, str);
+        else if(token != DEC)
+            print_fatal("Syntax error: expected DEC in comment but got %s\n", str.c_str());
+    }
+    else if(token == SEMICOLON)
+    {
+        check_next_token(WHITESPACE, c, str);
+        check_next_token(STRING, c, str);
+    }
+    else
+    {
+        print_fatal("Syntax error: expected comment but got %s\n", str.c_str());
+    }
+}
+
+Type instruction_symbol(char& c, std::string& str)
 {
     check_next_token(INSTRUCTION, c, str);
-    check_next_token(WHITESPACE, c, str);
-    operands_symbol(c, str);
+    Type token = get_token(c, str);
+    if(token == WHITESPACE)
+        return operands_symbol(c, str);
+    else
+        return token;
 }
 
 void x_symbol(Type token, char& c, std::string& str)
@@ -383,7 +542,6 @@ void x_symbol(Type token, char& c, std::string& str)
     if(token != STRING)
         print_fatal("Syntax error: expected string but got %s\n", str.c_str());
     token = get_token(c, str);
-    printf("Got token: %s\n", str.c_str());
     if(token == MINUS || token == PLUS)
     {
         check_next_token(HEX, c, str);
@@ -393,26 +551,24 @@ void x_symbol(Type token, char& c, std::string& str)
     {
         print_fatal("Syntax error: expected '>' but got %s which is %s\n", str.c_str(), type_to_string(token));
     }
-    check_next_token(COLON, c, str);
-    check_next_token(WHITESPACE, c, str);
 }
 
 void start_symbol(Type token, char& c, std::string& str)
 {
-    if(token == HEX)
+    if(token == HEX || token == DEC)
     {
         check_next_token(WHITESPACE, c, str);
         check_next_token(LESS_THAN, c, str);
         check_next_token(STRING, c, str);
         check_next_token(AT, c, str);
         token = get_token(c, str);
-        printf("Got token: %s\n", str.c_str());
         if(token == AT)
         {
             token = get_token(c, str);
-            printf("Got token: %s\n", str.c_str());
         }
         x_symbol(token, c, str);
+        check_next_token(COLON, c, str);
+        check_next_token(NEWLINE, c, str);
     }
     else if(token == WHITESPACE)
     {
@@ -421,13 +577,22 @@ void start_symbol(Type token, char& c, std::string& str)
         check_next_token(WHITESPACE, c, str);
         check_next_token(HEX, c, str);
         check_next_token(WHITESPACE, c, str);
-        instruction_symbol(c, str);
+        token = instruction_symbol(c, str);
+        if(token == WHITESPACE)
+        {
+            comment_symbol(c, str);
+            check_next_token(NEWLINE, c, str);
+        }
+        else if(token != NEWLINE)
+        {
+            print_fatal("Syntax error: expected newline after instruction, got: %s\n", str.c_str());       
+        }
     }
-    else
+    else if(token != NEWLINE)
     {
         print_fatal("Syntax error: expected starting symbol, got: %s\n", str.c_str());
     }
-    printf("Finished line, back to starting symbol\n");
+    printf("Syntax accepted, back to starting symbol\n");
 }
 
 int main(int argc, char** argv)
@@ -454,7 +619,6 @@ int main(int argc, char** argv)
     {
         std::string str;
         Type token = get_token(c, str);
-        printf("Got token: %s\n", str.c_str());
         //if(token != WHITESPACE)
         //    print_log("'%s' is %s\n", str.c_str(), type_to_string(token));
         if(token == BAD_TOKEN)

@@ -137,9 +137,9 @@ ror
 rorv
 sbc
 sbcs
-sbfiz
 sbfm
 sbfx
+sbfiz
 sdiv
 sev
 sevl

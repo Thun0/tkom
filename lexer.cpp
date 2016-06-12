@@ -38,17 +38,43 @@ void Lexer::initialize_set(char* filename, std::set <uint64_t>* s)
     fclose(file);
 }
 
+Type Lexer::get_hex(char &c, std::string &str)
+{
+    while(is_hex(c))
+    {
+        str += c;
+        c = fgetc(input_file);
+    }
+    return HEX;
+}
+
+Type Lexer::get_whitespace(char &c, std::string &str)
+{
+    while(is_whitespace(c))
+    {
+        str += c;
+        c = fgetc(input_file);
+    }
+    return WHITESPACE;
+}
+
+Type Lexer::get_type_by_hash(uint64_t hash)
+{
+    if(instruction_set.find(hash) != instruction_set.end())
+        return INSTRUCTION;
+    if(condition_set.find(hash) != condition_set.end())
+        return CONDITION;
+    if(register_set.find(hash) != register_set.end())
+        return REGISTER;
+    return STRING;
+}
+
 Type Lexer::get_token(char &c, std::string &str)
 {
     str = "";
     if(is_whitespace(c))
     {
-        while(is_whitespace(c))
-        {
-            str += c;
-            c = fgetc(input_file);
-        }
-        return WHITESPACE;
+        return get_whitespace(c, str);
     }
     if(c == '0')
     {
@@ -58,12 +84,7 @@ Type Lexer::get_token(char &c, std::string &str)
         {
             str += c;
             c = fgetc(input_file);
-            while(is_hex(c))
-            {
-                str += c;
-                c = fgetc(input_file);
-            }
-            return HEX;
+            return get_hex(c, str);
         }
         while(is_digit(c))
         {
@@ -72,12 +93,7 @@ Type Lexer::get_token(char &c, std::string &str)
         }
         if(is_hex(c))
         {
-            while(is_hex(c))
-            {
-                str += c;
-                c = fgetc(input_file);
-            }
-            return HEX;
+            return get_hex(c, str);
         }
         else
         {
@@ -93,12 +109,7 @@ Type Lexer::get_token(char &c, std::string &str)
         }
         if(is_hex(c))
         {
-            while(is_hex(c))
-            {
-                str += c;
-                c = fgetc(input_file);
-            }
-            return HEX;
+            return get_hex(c, str);
         }
         else
         {
@@ -126,13 +137,7 @@ Type Lexer::get_token(char &c, std::string &str)
                     str += c;
                     c = fgetc(input_file);
                 }
-                if(instruction_set.find(hash) != instruction_set.end())
-                    return INSTRUCTION;
-                if(condition_set.find(hash) != condition_set.end())
-                    return CONDITION;
-                if(register_set.find(hash) != register_set.end())
-                    return REGISTER;
-                return STRING;
+                return get_type_by_hash(hash);
             }
             else if(instruction_set.find(hash) != instruction_set.end())
                     return HEX_OR_INSTRUCTION;
@@ -148,13 +153,7 @@ Type Lexer::get_token(char &c, std::string &str)
                 str += c;
                 c = fgetc(input_file);
             }
-            if(instruction_set.find(hash) != instruction_set.end())
-                return INSTRUCTION;
-            if(condition_set.find(hash) != condition_set.end())
-                return CONDITION;
-            if(register_set.find(hash) != register_set.end())
-                return REGISTER;
-            return STRING;
+            return get_type_by_hash(hash);
         }
     }
     str += c;
@@ -170,72 +169,39 @@ Type Lexer::get_token(char &c, std::string &str)
         else 
             return BAD_TOKEN;
     }
-    if(c == '!')
+    char s = c;
+    c = fgetc(input_file);
+    switch(s)
     {
-        c = fgetc(input_file);
-        return EXCLAMATION;
+        case '!':
+            return EXCLAMATION;
+        case '\n':
+            return NEWLINE;
+        case '#':
+            return HASH;
+        case ':':
+            return COLON;
+        case ';':
+            return SEMICOLON;
+        case '[':
+            return LEFT_SQ_BRACKET;
+        case ']':
+            return RIGHT_SQ_BRACKET;
+        case ',':
+            return COMMA;
+        case '@':
+            return AT;
+        case '+':
+            return PLUS;
+        case '-':
+            return MINUS;
+        case '<':
+            return LESS_THAN;
+        case '>':
+            return MORE_THAN;
+        default:
+            return BAD_TOKEN;
     }
-    if(c == '\n')
-    {
-        c = fgetc(input_file);
-        return NEWLINE;
-    }
-    if(c == '#')
-    {
-        c = fgetc(input_file);
-        return HASH;
-    }
-    if(c == ':')
-    {
-        c = fgetc(input_file);
-        return COLON;
-    }
-    if(c == ';')
-    {
-        c = fgetc(input_file);
-        return SEMICOLON;
-    }
-    if(c == '[')
-    {
-        c = fgetc(input_file);
-        return LEFT_SQ_BRACKET;
-    }
-    if(c == ']')
-    {
-        c = fgetc(input_file);
-        return RIGHT_SQ_BRACKET;
-    }
-    if(c == ',')
-    {
-        c = fgetc(input_file);
-        return COMMA;
-    }
-    if(c == '@')
-    {
-        c = fgetc(input_file);
-        return AT;
-    }
-    if(c == '+')
-    {
-        c = fgetc(input_file);
-        return PLUS;
-    }
-    if(c == '-')
-    {
-        c = fgetc(input_file);
-        return MINUS;
-    }
-    if(c == '<')
-    {
-        c = fgetc(input_file);
-        return LESS_THAN;
-    }
-    if(c == '>')
-    {
-        c = fgetc(input_file);
-        return MORE_THAN;
-    }
-    return BAD_TOKEN;
 }
 
 Lexer::Lexer(FILE* file)

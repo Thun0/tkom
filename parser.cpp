@@ -8,7 +8,7 @@ void Parser::parse()
     {
         std::string str;
         Type token = lexer->get_token(c, str);
-        start_symbol(token, c, str);
+        parse_start_symbol(token, c, str);
     }
     print_log("End of file\n");
     print_log("Finished\n");
@@ -27,7 +27,7 @@ void Parser::check_next_token(Type token, char& c, std::string& str)
     }
 }
 
-Type Parser::y_symbol(char& c, std::string& str)
+Type Parser::parse_y_symbol(char& c, std::string& str)
 {
     Type token = lexer->get_token(c, str);
     if(token == HASH)
@@ -60,7 +60,7 @@ Type Parser::y_symbol(char& c, std::string& str)
     return lexer->get_token(c, str);
 }
 
-void Parser::z_symbol(char& c, std::string& str)
+void Parser::parse_z_symbol(char& c, std::string& str)
 {
     check_next_token(WHITESPACE, c, str);
     Type token = lexer->get_token(c, str);
@@ -73,7 +73,7 @@ void Parser::z_symbol(char& c, std::string& str)
         {
             token = lexer->get_token(c, str);
         }
-        x_symbol(token, c, str);
+        parse_x_symbol(token, c, str);
     }
     else if(token == SEMICOLON)
     {
@@ -82,7 +82,7 @@ void Parser::z_symbol(char& c, std::string& str)
     }
 }
 
-Type Parser::operands_symbol(char& c, std::string& str)
+Type Parser::parse_operands_symbol(char& c, std::string& str)
 {
     Type token = lexer->get_token(c, str);
     for(int i = 0; i < 4; ++i)
@@ -106,7 +106,7 @@ Type Parser::operands_symbol(char& c, std::string& str)
             token = lexer->get_token(c, str);
             if(token == COMMA)
             {
-                token = y_symbol(c, str);
+                token = parse_y_symbol(c, str);
             }
             if(token != RIGHT_SQ_BRACKET)
                 print_fatal("Syntax error: expected ',' or ']' but got %s\n", str.c_str());
@@ -116,7 +116,7 @@ Type Parser::operands_symbol(char& c, std::string& str)
         }
         else if(token == HEX || token == DEC)
         {
-            z_symbol(c, str);
+            parse_z_symbol(c, str);
             token = lexer->get_token(c, str);
         }
         else if(token == STRING || token == CONDITION)
@@ -146,7 +146,7 @@ Type Parser::operands_symbol(char& c, std::string& str)
     return token;
 }
 
-void Parser::comment_symbol(char& c, std::string& str)
+void Parser::parse_comment_symbol(char& c, std::string& str)
 {
     Type token = lexer->get_token(c, str);
     if(token == DOUBLE_SLASH)
@@ -170,17 +170,17 @@ void Parser::comment_symbol(char& c, std::string& str)
     }
 }
 
-Type Parser::instruction_symbol(char& c, std::string& str)
+Type Parser::parse_instruction_symbol(char& c, std::string& str)
 {
     check_next_token(INSTRUCTION, c, str);
     Type token = lexer->get_token(c, str);
     if(token == WHITESPACE)
-        return operands_symbol(c, str);
+        return parse_operands_symbol(c, str);
     else
         return token;
 }
 
-void Parser::x_symbol(Type token, char& c, std::string& str)
+void Parser::parse_x_symbol(Type token, char& c, std::string& str)
 {
     if(token != STRING)
         print_fatal("Syntax error: expected string but got %s\n", str.c_str());
@@ -196,7 +196,7 @@ void Parser::x_symbol(Type token, char& c, std::string& str)
     }
 }
 
-void Parser::start_symbol(Type token, char& c, std::string& str)
+void Parser::parse_start_symbol(Type token, char& c, std::string& str)
 {
     if(token == HEX || token == DEC)
     {
@@ -209,7 +209,7 @@ void Parser::start_symbol(Type token, char& c, std::string& str)
         {
             token = lexer->get_token(c, str);
         }
-        x_symbol(token, c, str);
+        parse_x_symbol(token, c, str);
         check_next_token(COLON, c, str);
         check_next_token(NEWLINE, c, str);
     }
@@ -220,10 +220,10 @@ void Parser::start_symbol(Type token, char& c, std::string& str)
         check_next_token(WHITESPACE, c, str);
         check_next_token(HEX, c, str);
         check_next_token(WHITESPACE, c, str);
-        token = instruction_symbol(c, str);
+        token = parse_instruction_symbol(c, str);
         if(token == WHITESPACE)
         {
-            comment_symbol(c, str);
+            parse_comment_symbol(c, str);
             check_next_token(NEWLINE, c, str);
         }
         else if(token != NEWLINE)
@@ -235,7 +235,7 @@ void Parser::start_symbol(Type token, char& c, std::string& str)
     {
         print_fatal("Syntax error: expected starting symbol, got: %s\n", str.c_str());
     }
-    printf("Syntax accepted, back to starting symbol\n");
+    print_log("Syntax accepted, back to starting symbol\n");
 }
 
 void Parser::open_file(char* filepath)

@@ -8,15 +8,15 @@ class Parser
     FILE* input_file;
     Lexer* lexer;
     Parser();
-    void comment_symbol(char&, std::string&);
-    Type instruction_symbol(char&, std::string&);
-    void x_symbol(Type, char&, std::string&);
-    void start_symbol(Type, char&, std::string&);
-    void check_next_token(Type, char&, std::string&);
-    Type operands_symbol(char&, std::string&);
-    Type y_symbol(char&, std::string&);
-    void z_symbol(char&, std::string&);
     void open_file(char*);
+    void check_next_token(Type, char&, std::string&);
+    void parse_comment_symbol(char&, std::string&);
+    void parse_x_symbol(Type, char&, std::string&);
+    void parse_start_symbol(Type, char&, std::string&);
+    void parse_z_symbol(char&, std::string&);
+    Type parse_operands_symbol(char&, std::string&);
+    Type parse_y_symbol(char&, std::string&);
+    Type parse_instruction_symbol(char&, std::string&);
 public:
     void parse();
     Parser(char*);

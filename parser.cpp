@@ -1,14 +1,16 @@
 #include "parser.h"
 #include "output.h"
 
-void Parser::parse()
+void Parser::parse(std::vector<Instruction>& instructions)
 {
     char c = fgetc(input_file);
     while((c != EOF))
     {
         std::string str;
         Type token = lexer->get_token(c, str);
-        parse_start_symbol(token, c, str);
+        Instruction* instruction = parse_start_symbol(token, c, str);
+        if(instruction != NULL)
+            instructions.push_back(*instruction);
     }
     print_log("End of file\n");
     print_log("Finished\n");
@@ -170,9 +172,10 @@ void Parser::parse_comment_symbol(char& c, std::string& str)
     }
 }
 
-Type Parser::parse_instruction_symbol(char& c, std::string& str)
+Type Parser::parse_instruction_symbol(char& c, std::string& str, Instruction& instruction)
 {
     check_next_token(INSTRUCTION, c, str);
+    instruction.name = str;
     Type token = lexer->get_token(c, str);
     if(token == WHITESPACE)
         return parse_operands_symbol(c, str);
@@ -196,8 +199,9 @@ void Parser::parse_x_symbol(Type token, char& c, std::string& str)
     }
 }
 
-void Parser::parse_start_symbol(Type token, char& c, std::string& str)
+Instruction* Parser::parse_start_symbol(Type token, char& c, std::string& str)
 {
+    Instruction* instruction = new Instruction();
     if(token == HEX || token == DEC)
     {
         check_next_token(WHITESPACE, c, str);
@@ -212,15 +216,18 @@ void Parser::parse_start_symbol(Type token, char& c, std::string& str)
         parse_x_symbol(token, c, str);
         check_next_token(COLON, c, str);
         check_next_token(NEWLINE, c, str);
+        return NULL;
     }
     else if(token == WHITESPACE)
     {
         check_next_token(HEX, c, str);
+        sscanf(str.c_str(), " %x", &instruction->address);
         check_next_token(COLON, c, str);
         check_next_token(WHITESPACE, c, str);
         check_next_token(HEX, c, str);
+        sscanf(str.c_str(), " %x", &instruction->opcode);
         check_next_token(WHITESPACE, c, str);
-        token = parse_instruction_symbol(c, str);
+        token = parse_instruction_symbol(c, str, *instruction);
         if(token == WHITESPACE)
         {
             parse_comment_symbol(c, str);
@@ -230,12 +237,16 @@ void Parser::parse_start_symbol(Type token, char& c, std::string& str)
         {
             print_fatal("Syntax error: expected newline after instruction, got: %s\n", str.c_str());       
         }
+        print_log("Got instruction, addr: %x \t opcode: %x \t %s\n", instruction->address, instruction->opcode, instruction->name.c_str());
+        return instruction;
     }
     else if(token != NEWLINE)
     {
         print_fatal("Syntax error: expected starting symbol, got: %s\n", str.c_str());
+        return NULL;
     }
-    print_log("Syntax accepted, back to starting symbol\n");
+    return NULL;
+    //print_log("Syntax accepted, back to starting symbol\n");
 }
 
 void Parser::open_file(char* filepath)

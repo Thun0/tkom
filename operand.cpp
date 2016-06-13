@@ -1,9 +1,7 @@
 #include "operand.h"
 
-Operand::Operand(std::string type, std::string value)
+Operand::Operand()
 {
-    this->type = type;
-    this->value = value;
 }
 
 Operand::~Operand()
